@@ -6,18 +6,22 @@ import { useProgress } from '../hooks/useProgress'
 // Determine today's day entry from the rotation
 function getTodayEntry() {
   const now = new Date()
-  // Use local day of week (0=Sun … 6=Sat) mapped to rotation index 0–13
-  // Rotation: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6 for week A
-  //           Mon=7, Tue=8, Wed=9, Thu=10, Fri=11, Sat=12, Sun=13 for week B
+
+  // ISO weekday: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6
+  const jsDay = now.getDay() // 0=Sun ... 6=Sat
+  const isoDay = jsDay === 0 ? 6 : jsDay - 1
+
+  // Determine A/B week using the Monday-aligned week number parity.
+  // mondayEpoch = epoch day of this week's Monday — gives a stable, timezone-safe
+  // week identifier. Even weeks = Week A, odd = Week B (or vice versa; the
+  // exact parity just determines which real calendar weeks land on A vs B).
   const epochDay = Math.floor(now.getTime() / 86400000)
-  const rotationIndex = epochDay % 14
+  const mondayEpoch = epochDay - isoDay
+  const rotationWeek: 1 | 2 = Math.floor(mondayEpoch / 7) % 2 === 0 ? 1 : 2
 
-  // Find a day entry whose (weekInRotation, dayInRotation) matches this slot
-  // Slot 0–6 = week 1 Mon–Sun, Slot 7–13 = week 2 Mon–Sun
-  const week = rotationIndex < 7 ? 1 : 2
-  const dayInWeek = (rotationIndex % 7) + 1
+  const week = rotationWeek
+  const dayInWeek = isoDay + 1 // 1–7
 
-  // Find the next upcoming scheduled entry for this slot
   const match = SCHEDULE.find(
     d => d.weekInRotation === week && d.dayInRotation === dayInWeek
   )
